@@ -1,0 +1,31 @@
+<!-- templates/tracking_app/error.html -->
+{% extends 'base.html' %}
+
+{% block title %}❌ Error - Auto-Trigger Tracking{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>❌ Error Occurred</h2>
+    <div style="background: #ffebee; border: 1px solid #f44336; border-radius: 8px; padding: 20px; margin-top: 15px;">
+        <p style="color: #c62828; font-weight: bold;">Error Details:</p>
+        <pre style="background: #fff; padding: 10px; border-radius: 4px; margin-top: 10px; overflow-x: auto;">{{ error }}</pre>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <p><strong>Troubleshooting Steps:</strong></p>
+        <ol style="margin-top: 10px; line-height: 1.8;">
+            <li>Check your database connection</li>
+            <li>Verify Django settings configuration</li>
+            <li>Ensure all required packages are installed</li>
+            <li>Check PythonAnywhere error logs</li>
+            <li>Verify file permissions</li>
+        </ol>
+    </div>
+    
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="{% url 'tracking_app:home' %}" style="background: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+            🏠 Return to Home
+        </a>
+    </div>
+</div>
+{% endblock %}

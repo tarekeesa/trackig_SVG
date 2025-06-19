@@ -1,0 +1,71 @@
+<!-- templates/tracking_app/home.html -->
+{% extends 'base.html' %}
+
+{% block title %}🏠 Home - Auto-Trigger Tracking{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>🚀 Server Status</h2>
+    <p class="status-live">LIVE - Auto-trigger tracking active</p>
+    <div style="margin-top: 20px;">
+        <p><strong>Server MAC:</strong> {{ server_mac }}</p>
+        <p><strong>Current Time:</strong> {{ current_time|date:"Y-m-d H:i:s T" }}</p>
+        <p><strong>Total Logs:</strong> {{ total_logs }}</p>
+        <!-- <p><strong>Django Version:</strong> Optimized for PythonAnywhere</p> -->
+    </div>
+</div>
+<!-- 
+<div class="card">
+    <h2>📋 Tracking Endpoints</h2>
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 15px;">
+        <p><strong>🎯 Main Tracking Endpoint:</strong></p>
+        <code style="background: #e9ecef; padding: 5px 10px; border-radius: 4px; display: block; margin: 5px 0;">
+            https://yourusername.pythonanywhere.com/track/
+        </code>
+        
+        <p style="margin-top: 15px;"><strong>📊 Dashboard:</strong></p>
+        <code style="background: #e9ecef; padding: 5px 10px; border-radius: 4px; display: block; margin: 5px 0;">
+            https://yourusername.pythonanywhere.com/status/
+        </code>
+        
+        <p style="margin-top: 15px;"><strong>📜 Logs API:</strong></p>
+        <code style="background: #e9ecef; padding: 5px 10px; border-radius: 4px; display: block; margin: 5px 0;">
+            https://yourusername.pythonanywhere.com/logs/
+        </code>
+    </div>
+</div> -->
+
+{% if recent_logs %}
+<div class="card">
+    <h2>⚡ Recent Triggers</h2>
+    {% for log in recent_logs %}
+    <div class="log-entry">
+        <div class="log-meta">
+            <span>{{ log.timestamp|date:"Y-m-d H:i:s" }}</span>
+            <span>{{ log.ip_address }}</span>
+        </div>
+        <div class="log-trigger">
+            {{ log.trigger_category }} - {{ log.trigger_type }}
+        </div>
+        <div style="font-size: 0.9em; color: #7f8c8d;">
+            Method: {{ log.trigger_method|default:"unknown" }} | 
+            Via Ngrok: {% if log.via_ngrok %}Yes{% else %}No{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+<!-- 
+<div class="card">
+    <h2>🛠️ PythonAnywhere Setup Instructions</h2>
+    <ol style="line-height: 1.8;">
+        <li><strong>Upload Files:</strong> Upload all Django project files to your PythonAnywhere account</li>
+        <li><strong>Install Dependencies:</strong> Run <code>pip3.10 install --user -r requirements.txt</code></li>
+        <li><strong>Database Setup:</strong> Run <code>python3.10 manage.py migrate</code></li>
+        <li><strong>Create Superuser:</strong> Run <code>python3.10 manage.py createsuperuser</code></li>
+        <li><strong>Configure WSGI:</strong> Update your WSGI file with the provided configuration</li>
+        <li><strong>Update Settings:</strong> Set your domain in <code>ALLOWED_HOSTS</code></li>
+        <li><strong>Reload Web App:</strong> Click "Reload" in your PythonAnywhere web app dashboard</li>
+    </ol>
+</div> -->
+{% endblock %}

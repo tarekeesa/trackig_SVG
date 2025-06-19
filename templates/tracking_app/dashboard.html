@@ -1,0 +1,198 @@
+<!-- templates/tracking_app/dashboard.html -->
+{% extends 'base.html' %}
+
+{% block title %}📊 Dashboard - Auto-Trigger Analytics{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        height: 300px;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>🚀 Server Status</h2>
+    <p class="status-live">LIVE - Auto-trigger tracking active</p>
+    <div style="margin-top: 20px;">
+        <p><strong>Server MAC:</strong> {{ server_mac }}</p>
+        <p><strong>Last Updated:</strong> {{ current_time|date:"Y-m-d H:i:s T" }}</p>
+        <p><strong>Django Backend:</strong> Optimized for PythonAnywhere</p>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_logs }}</div>
+        <div class="stat-label">Total Triggers</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ js_triggers }}</div>
+        <div class="stat-label">JavaScript Triggers</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ svg_triggers }}</div>
+        <div class="stat-label">SVG Triggers</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ html_triggers }}</div>
+        <div class="stat-label">HTML Triggers</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ grid_triggers }}</div>
+        <div class="stat-label">Grid Triggers</div>
+    </div>
+</div>
+
+{% if trigger_stats %}
+<div class="card">
+    <h2>🎯 Trigger Type Breakdown</h2>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Trigger Type</th>
+                    <th>Count</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in trigger_stats %}
+                <tr>
+                    <td>
+                        {% if 'js_' in stat.trigger_type %}
+                            <span class="badge badge-js">JS</span>
+                        {% elif 'svg_' in stat.trigger_type %}
+                            <span class="badge badge-svg">SVG</span>
+                        {% elif 'html_' in stat.trigger_type %}
+                            <span class="badge badge-html">HTML</span>
+                        {% elif 'grid_' in stat.trigger_type %}
+                            <span class="badge badge-grid">GRID</span>
+                        {% else %}
+                            <span class="badge badge-default">OTHER</span>
+                        {% endif %}
+                        {{ stat.trigger_type|default:"unknown" }}
+                    </td>
+                    <td>{{ stat.count }}</td>
+                    <td>{% widthratio stat.count total_logs 100 %}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if method_stats %}
+<div class="card">
+    <h2>⚙️ Method Breakdown</h2>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>Count</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in method_stats %}
+                <tr>
+                    <td>{{ stat.trigger_method|default:"unknown" }}</td>
+                    <td>{{ stat.count }}</td>
+                    <td>{% widthratio stat.count total_logs 100 %}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if top_ips %}
+<div class="card">
+    <h2>🌐 Top IP Addresses</h2>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>IP Address</th>
+                    <th>Triggers</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ip_stat in top_ips %}
+                <tr>
+                    <td>{{ ip_stat.ip_address }}</td>
+                    <td>{{ ip_stat.count }}</td>
+                    <td>{% widthratio ip_stat.count total_logs 100 %}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if recent_logs %}
+<div class="card">
+    <h2>⚡ Recent Auto-Triggers (Last 20)</h2>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>IP</th>
+                    <th>Trigger</th>
+                    <th>Method</th>
+                    <th>Via Ngrok</th>
+                    <th>Format</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in recent_logs %}
+                <tr>
+                    <td>{{ log.timestamp|date:"m-d H:i:s" }}</td>
+                    <td>{{ log.ip_address }}</td>
+                    <td>
+                        {% if 'js_' in log.trigger_type %}
+                            <span class="badge badge-js">JS</span>
+                        {% elif 'svg_' in log.trigger_type %}
+                            <span class="badge badge-svg">SVG</span>
+                        {% elif 'html_' in log.trigger_type %}
+                            <span class="badge badge-html">HTML</span>
+                        {% elif 'grid_' in log.trigger_type %}
+                            <span class="badge badge-grid">GRID</span>
+                        {% else %}
+                            <span class="badge badge-default">OTHER</span>
+                        {% endif %}
+                        {{ log.trigger_type|default:"unknown"|truncatechars:20 }}
+                    </td>
+                    <td>{{ log.trigger_method|default:"unknown"|truncatechars:15 }}</td>
+                    <td>{% if log.via_ngrok %}✅{% else %}❌{% endif %}</td>
+                    <td>{{ log.response_format|default:"json" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="auto-refresh">
+    <p>🔄 This dashboard auto-refreshes every 30 seconds</p>
+    <p>📜 <a href="{% url 'tracking_app:logs' %}">View detailed logs (JSON API)</a></p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-refresh every 30 seconds
+    setTimeout(function() {
+        location.reload();
+    }, 30000);
+</script>
+{% endblock %}

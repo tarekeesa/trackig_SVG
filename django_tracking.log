@@ -1,0 +1,4 @@
+Database logging error: Object of type LimitedStream is not JSON serializable
+Dashboard error: cannot access local variable 'Count' where it is not associated with a value
+Dashboard error: cannot access local variable 'Count' where it is not associated with a value
+Home view error: 'block' tag with name 'title' appears more than once

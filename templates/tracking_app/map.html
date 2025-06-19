@@ -1,0 +1,487 @@
+<!-- templates/tracking_app/map.html -->
+{% extends 'base.html' %}
+
+{% block title %}🗺️ IP Location Map - Auto-Trigger Tracking{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    #map {
+        height: 70vh;
+        width: 100%;
+        border-radius: 15px;
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    
+    .map-controls {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    
+    .control-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 8px 15px;
+        border-radius: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .control-group label {
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0;
+    }
+    
+    .control-group select, .control-group input {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 4px 8px;
+        font-size: 0.9em;
+    }
+    
+    .marker-popup {
+        min-width: 300px;
+        max-width: 400px;
+    }
+    
+    .popup-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 10px 15px;
+        margin: -10px -15px 10px -15px;
+        border-radius: 8px 8px 0 0;
+        font-weight: bold;
+    }
+    
+    .popup-section {
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .popup-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    
+    .popup-label {
+        font-weight: 600;
+        color: #2c3e50;
+        display: inline-block;
+        min-width: 80px;
+    }
+    
+    .popup-value {
+        color: #34495e;
+    }
+    
+    .trigger-list {
+        max-height: 150px;
+        overflow-y: auto;
+        background: #f8f9fa;
+        border-radius: 4px;
+        padding: 8px;
+        margin-top: 5px;
+    }
+    
+    .trigger-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 0;
+        border-bottom: 1px solid #dee2e6;
+        font-size: 0.85em;
+    }
+    
+    .trigger-item:last-child {
+        border-bottom: none;
+    }
+    
+    .trigger-badge {
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 0.7em;
+        font-weight: bold;
+        color: white;
+    }
+    
+    .badge-js { background: #f39c12; }
+    .badge-svg { background: #e74c3c; }
+    .badge-html { background: #3498db; }
+    .badge-grid { background: #9b59b6; }
+    .badge-default { background: #95a5a6; }
+    
+    .legend {
+        background: rgba(255, 255, 255, 0.95);
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-top: 20px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        margin-right: 10px;
+    }
+    
+    .stats-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    @media (max-width: 768px) {
+        .map-controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .control-group {
+            justify-content: space-between;
+        }
+        
+        #map {
+            height: 60vh;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="stats-summary">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_ips }}</div>
+        <div class="stat-label">Unique IPs</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ total_triggers }}</div>
+        <div class="stat-label">Total Triggers</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ countries }}</div>
+        <div class="stat-label">Countries</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="selected-marker">0</div>
+        <div class="stat-label">Selected Marker</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>🗺️ IP Geolocation Map</h2>
+    
+    <div class="map-controls">
+        <div class="control-group">
+            <label>🔍 Filter:</label>
+            <select id="filter-type">
+                <option value="all">All Triggers</option>
+                <option value="js">JavaScript</option>
+                <option value="svg">SVG Injection</option>
+                <option value="html">HTML Auto-exec</option>
+                <option value="grid">Grid Triggers</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>🎯 Min Triggers:</label>
+            <input type="range" id="min-triggers" min="1" max="50" value="1" style="width: 100px;">
+            <span id="min-triggers-value">1</span>
+        </div>
+        
+        <div class="control-group">
+            <label>🌍 Zoom:</label>
+            <button onclick="zoomToFit()" class="nav" style="margin: 0; padding: 5px 10px; font-size: 0.8em;">Fit All</button>
+        </div>
+        
+        <div class="control-group">
+            <label>🔄 Auto-refresh:</label>
+            <input type="checkbox" id="auto-refresh" checked>
+            <span style="font-size: 0.8em;">30s</span>
+        </div>
+    </div>
+    
+    <div id="map"></div>
+</div>
+
+<div class="legend">
+    <h3>📍 Legend</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+        <div class="legend-item">
+            <div class="legend-color" style="background: #e74c3c;"></div>
+            <span>High Activity (10+ triggers)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #f39c12;"></div>
+            <span>Medium Activity (5-9 triggers)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #27ae60;"></div>
+            <span>Low Activity (1-4 triggers)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #3498db;"></div>
+            <span>Via Ngrok</span>
+        </div>
+    </div>
+    <p style="margin-top: 10px; font-size: 0.9em; color: #7f8c8d;">
+        💡 Click markers for detailed information. Hover to see quick stats. 
+        Use controls above to filter and customize the view.
+    </p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Map data from Django
+    const mapData = {{ map_data|safe }};
+    let map;
+    let markers = [];
+    let markerGroup;
+    
+    // Initialize map
+    function initMap() {
+        // Create map centered on world view
+        map = L.map('map').setView([20, 0], 2);
+        
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(map);
+        
+        // Create marker group
+        markerGroup = L.layerGroup().addTo(map);
+        
+        // Add markers
+        addMarkers();
+        
+        // Fit map to markers if we have data
+        if (mapData.length > 0) {
+            setTimeout(() => zoomToFit(), 1000);
+        }
+    }
+    
+    function getMarkerColor(count, viaNgrok) {
+        if (viaNgrok) return '#3498db';  // Blue for ngrok
+        if (count >= 10) return '#e74c3c';  // Red for high activity
+        if (count >= 5) return '#f39c12';   // Orange for medium activity
+        return '#27ae60';  // Green for low activity
+    }
+    
+    function getMarkerSize(count) {
+        if (count >= 20) return 12;
+        if (count >= 10) return 10;
+        if (count >= 5) return 8;
+        return 6;
+    }
+    
+    function addMarkers() {
+        markerGroup.clearLayers();
+        markers = [];
+        
+        const filterType = document.getElementById('filter-type').value;
+        const minTriggers = parseInt(document.getElementById('min-triggers').value);
+        
+        mapData.forEach((item, index) => {
+            // Apply filters
+            if (item.count < minTriggers) return;
+            
+            if (filterType !== 'all') {
+                const hasFilterType = item.triggers.some(trigger => {
+                    const type = trigger.type || '';
+                    switch(filterType) {
+                        case 'js': return type.includes('js_');
+                        case 'svg': return type.includes('svg_');
+                        case 'html': return type.includes('html_');
+                        case 'grid': return type.includes('grid_');
+                        default: return true;
+                    }
+                });
+                if (!hasFilterType) return;
+            }
+            
+            const lat = item.latitude;
+            const lng = item.longitude;
+            
+            if (lat === 0 && lng === 0) return;
+            
+            const color = getMarkerColor(item.count, item.via_ngrok);
+            const size = getMarkerSize(item.count);
+            
+            // Create custom marker
+            const marker = L.circleMarker([lat, lng], {
+                radius: size,
+                fillColor: color,
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            });
+            
+            // Create popup content
+            const popupContent = createPopupContent(item);
+            marker.bindPopup(popupContent, {
+                maxWidth: 400,
+                className: 'marker-popup'
+            });
+            
+            // Add hover tooltip
+            const tooltipContent = `
+                <strong>${item.ip}</strong><br>
+                📍 ${item.city}, ${item.country}<br>
+                🎯 ${item.count} triggers<br>
+                🏢 ${item.isp}
+            `;
+            marker.bindTooltip(tooltipContent, {
+                permanent: false,
+                direction: 'top'
+            });
+            
+            // Add click handler
+            marker.on('click', function() {
+                document.getElementById('selected-marker').textContent = item.count;
+                // Zoom to marker
+                map.setView([lat, lng], Math.max(map.getZoom(), 8));
+            });
+            
+            markers.push(marker);
+            markerGroup.addLayer(marker);
+        });
+        
+        console.log(`Added ${markers.length} markers to map`);
+    }
+    
+    function createPopupContent(item) {
+        const triggers = item.triggers || [];
+        const methods = item.methods || [];
+        const userAgents = item.user_agents || [];
+        
+        let triggersList = '';
+        triggers.slice(-5).forEach(trigger => {
+            const badge = getTriggerBadge(trigger.type);
+            const time = new Date(trigger.timestamp).toLocaleString();
+            triggersList += `
+                <div class="trigger-item">
+                    <div>
+                        ${badge} ${trigger.type || 'unknown'}
+                        <div style="font-size: 0.7em; color: #7f8c8d;">${time}</div>
+                    </div>
+                    <div style="font-size: 0.8em; color: #2c3e50;">${trigger.method || 'unknown'}</div>
+                </div>
+            `;
+        });
+        
+        const firstSeen = new Date(item.first_seen).toLocaleString();
+        const lastSeen = new Date(item.last_seen).toLocaleString();
+        
+        return `
+            <div class="popup-header">
+                🌍 ${item.ip} - ${item.city}, ${item.country}
+            </div>
+            
+            <div class="popup-section">
+                <div><span class="popup-label">🎯 Triggers:</span> <strong>${item.count}</strong></div>
+                <div><span class="popup-label">🏢 ISP:</span> <span class="popup-value">${item.isp}</span></div>
+                <div><span class="popup-label">🌐 Region:</span> <span class="popup-value">${item.region}, ${item.country_code}</span></div>
+                <div><span class="popup-label">⏰ Timezone:</span> <span class="popup-value">${item.timezone}</span></div>
+            </div>
+            
+            <div class="popup-section">
+                <div><span class="popup-label">🏠 Hostname:</span> <span class="popup-value">${item.hostname || 'unknown'}</span></div>
+                <div><span class="popup-label">🌍 Via Ngrok:</span> <span class="popup-value">${item.via_ngrok ? '✅ Yes' : '❌ No'}</span></div>
+                <div><span class="popup-label">📍 Coordinates:</span> <span class="popup-value">${item.latitude.toFixed(4)}, ${item.longitude.toFixed(4)}</span></div>
+            </div>
+            
+            <div class="popup-section">
+                <div><span class="popup-label">⚡ First Seen:</span> <span class="popup-value">${firstSeen}</span></div>
+                <div><span class="popup-label">🔄 Last Seen:</span> <span class="popup-value">${lastSeen}</span></div>
+                <div><span class="popup-label">⚙️ Methods:</span> <span class="popup-value">${methods.join(', ')}</span></div>
+            </div>
+            
+            <div class="popup-section">
+                <div><span class="popup-label">🎯 Recent Triggers:</span></div>
+                <div class="trigger-list">
+                    ${triggersList || '<div style="color: #7f8c8d; font-style: italic;">No triggers recorded</div>'}
+                </div>
+            </div>
+            
+            ${userAgents.length > 0 ? `
+            <div class="popup-section">
+                <div><span class="popup-label">🖥️ User Agents:</span></div>
+                <div style="font-size: 0.8em; color: #7f8c8d; max-height: 60px; overflow-y: auto; margin-top: 5px;">
+                    ${userAgents.map(ua => `<div>• ${ua}</div>`).join('')}
+                </div>
+            </div>
+            ` : ''}
+        `;
+    }
+    
+    function getTriggerBadge(triggerType) {
+        const type = triggerType || '';
+        if (type.includes('js_')) return '<span class="trigger-badge badge-js">JS</span>';
+        if (type.includes('svg_')) return '<span class="trigger-badge badge-svg">SVG</span>';
+        if (type.includes('html_')) return '<span class="trigger-badge badge-html">HTML</span>';
+        if (type.includes('grid_')) return '<span class="trigger-badge badge-grid">GRID</span>';
+        return '<span class="trigger-badge badge-default">OTHER</span>';
+    }
+    
+    function zoomToFit() {
+        if (markers.length === 0) return;
+        
+        const group = new L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.1));
+    }
+    
+    // Event listeners
+    document.getElementById('filter-type').addEventListener('change', addMarkers);
+    document.getElementById('min-triggers').addEventListener('input', function() {
+        document.getElementById('min-triggers-value').textContent = this.value;
+        addMarkers();
+    });
+    
+    // Auto-refresh functionality
+    let refreshInterval;
+    document.getElementById('auto-refresh').addEventListener('change', function() {
+        if (this.checked) {
+            refreshInterval = setInterval(() => {
+                console.log('Auto-refreshing map data...');
+                location.reload();
+            }, 30000);
+        } else {
+            clearInterval(refreshInterval);
+        }
+    });
+    
+    // Initialize map when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        initMap();
+        
+        // Start auto-refresh if enabled
+        if (document.getElementById('auto-refresh').checked) {
+            refreshInterval = setInterval(() => {
+                console.log('Auto-refreshing map data...');
+                location.reload();
+            }, 30000);
+        }
+    });
+    
+    // Show loading status
+    console.log(`🗺️ Map initialized with ${mapData.length} IP locations`);
+</script>
+{% endblock %}
